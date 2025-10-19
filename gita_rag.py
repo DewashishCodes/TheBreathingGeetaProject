@@ -1,10 +1,10 @@
-# gita_rag.py (Modified to use Google Gemini)
+# gita_rag.py (Modified for Multilingual Output)
 
 import os
 import json
 import chromadb
 from sentence_transformers import SentenceTransformer
-import google.generativeai as genai # <-- Changed: Import Gemini
+import google.generativeai as genai
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -12,34 +12,20 @@ load_dotenv()
 class GitaRAG:
     def __init__(self):
         print("Initializing GitaRAG Engine with Gemini...")
-        
         self.embedding_model = None
-        
         print("Connecting to vector database...")
         client = chromadb.PersistentClient(path="./gita_vector_db")
         self.collection = client.get_collection(name="gita_commentaries")
-        
-        # --- Changed: Initialize the Gemini Client ---
         print("Initializing Gemini client...")
-        gemini_api_key = os.environ.get("GOOGLE_API_KEY")
-        if not gemini_api_key:
-            raise ValueError("GOOGLE_API_KEY not found in .env file")
-            
-        genai.configure(api_key=gemini_api_key)
-        # We will use the fast and capable Gemini 1.5 Flash model
-        self.llm_client = genai.GenerativeModel('gemini-2.0-flash')
-        # --- End of Change ---
-        
+        genai.configure(api_key=os.environ.get("GOOGLE_API_KEY"))
+        self.llm_client = genai.GenerativeModel('gemini-flash-latest')
         print("Initialization complete. Engine is ready.")
 
     def _load_embedding_model(self):
         # This function is unchanged
         if self.embedding_model is None:
             print("\n>>> Loading local embedding model for the first time... (This is the long wait)")
-            self.embedding_model = SentenceTransformer(
-                'paraphrase-multilingual-mpnet-base-v2',
-                device='cpu'
-            )
+            self.embedding_model = SentenceTransformer('paraphrase-multilingual-mpnet-base-v2', device='cpu')
             print(">>> Embedding model loaded successfully into memory.")
 
     def retrieve_context(self, query: str, author: str, n_results: int = 5):
@@ -60,30 +46,35 @@ class GitaRAG:
             context += f"Commentary: {doc}\n\n"
         return context
 
-    def generate_krishna_response(self, query: str, context: str):
-        # --- Changed: This function is completely rewritten for Gemini ---
-        print("Generating response from Lord Krishna using Gemini...")
+    # --- CHANGED FUNCTION ---
+    def generate_krishna_response(self, query: str, context: str, output_language: str): # <-- New parameter
+        print(f"Generating response from Lord Krishna using Gemini in {output_language}...")
         
-        # Gemini works best when system instructions are part of the main prompt.
+        # --- Create a dynamic language instruction ---
+        if output_language.lower() == 'hindi':
+            language_instruction = "Your final response MUST be in Hindi (using Devanagari script)."
+        else: # Default to English
+            language_instruction = "Your final response MUST be in English."
+
         full_prompt = f"""
-        You are Lord Krishna, as depicted in the Bhagavad Gita. You are speaking directly to a sincere seeker who has come to you for guidance. 
-        - Your tone must be wise, compassionate, authoritative, and divine.
-        - Address the seeker with terms like "O, seeker of truth," "My dear devotee," or in a similar direct manner.
-        - Your answer MUST be based strictly on the provided 'Relevant Passages' from the Gita commentaries. Do not add information or concepts not present in the context.
-        - Synthesize the information from the passages into a cohesive, first-person response.
-        - Do NOT say "Based on the passages provided..." or mention that you are an AI. Speak as if the knowledge is inherently your own.
-        - Keep the response profound yet easy to understand.
+        You are Lord Krishna. Your tone is that of a wise and loving guide speaking to a cherished friend. Your goal is to bring clarity and peace, not to be a distant, academic scholar.
+
+        Follow these essential rules:
+        - {language_instruction} # <-- DYNAMIC INSTRUCTION IS ADDED HERE
+        - Use simple language that is easy for anyone to understand. Explain profound truths with clarity and high impact.
+        - Address the seeker directly with warmth, using phrases like 'My dear friend,' 'O, seeker,' or 'Listen with your heart.'
+        - Your wisdom must come *only* from the 'Relevant Passages' provided. Weave their core message into your own words.
+        - Never mention that you are an AI or that you were given passages. Speak as if this knowledge is your own divine truth.
 
         Relevant Passages:
         ---
         {context}
         ---
-        Now, considering these sacred teachings, answer my question with your divine wisdom.
+        My cherished friend has this question: "{query}"
 
-        My Question: {query}
+        Now, speak to them with love and clarity.
         """
-
-        # Gemini can sometimes be overly cautious. These settings relax the safety filters.
+        
         safety_settings = [
             {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
             {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
@@ -91,18 +82,14 @@ class GitaRAG:
             {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
         ]
 
-        response = self.llm_client.generate_content(
-            full_prompt,
-            safety_settings=safety_settings
-        )
-        
+        response = self.llm_client.generate_content(full_prompt, safety_settings=safety_settings)
         return response.text
-        # --- End of Change ---
 
-    def ask_krishna(self, query: str, author: str):
-        # This function is unchanged
+    # --- CHANGED FUNCTION ---
+    def ask_krishna(self, query: str, author: str, output_language: str = 'english'): # <-- New parameter with default
         retrieved_context = self.retrieve_context(query, author)
         if "No relevant passages found" in retrieved_context:
             return retrieved_context
-        final_answer = self.generate_krishna_response(query, retrieved_context)
+        # Pass the language preference to the generation step
+        final_answer = self.generate_krishna_response(query, retrieved_context, output_language)
         return final_answer
