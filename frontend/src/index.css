@@ -1,0 +1,122 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 262 47% 9%;
+    --foreground: 40 60% 92%;
+
+    --card: 262 40% 12%;
+    --card-foreground: 40 60% 92%;
+
+    --popover: 262 45% 10%;
+    --popover-foreground: 40 60% 92%;
+
+    --primary: 28 88% 62%;
+    --primary-foreground: 262 47% 9%;
+
+    --secondary: 262 35% 20%;
+    --secondary-foreground: 40 60% 92%;
+
+    --muted: 262 30% 18%;
+    --muted-foreground: 40 20% 70%;
+
+    --accent: 330 65% 65%;
+    --accent-foreground: 262 47% 9%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 40 60% 92%;
+
+    --border: 262 30% 25%;
+    --input: 262 30% 20%;
+    --ring: 28 88% 62%;
+
+    --radius: 0.75rem;
+
+    --ai-bubble: 262 40% 15%;
+    --user-bubble: 262 35% 22%;
+    --shloka-card: 262 38% 14%;
+    
+    --gold-glow: 28 88% 62%;
+    --lotus-pink: 330 65% 65%;
+    --divine-purple: 262 70% 45%;
+    
+    --shadow-glow: 0 0 30px hsl(28 88% 62% / 0.3);
+    --shadow-soft: 0 4px 20px hsl(262 47% 5% / 0.5);
+    
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    background-image: 
+      radial-gradient(circle at 20% 30%, hsl(262 70% 45% / 0.08) 0%, transparent 50%),
+      radial-gradient(circle at 80% 70%, hsl(330 65% 65% / 0.06) 0%, transparent 50%);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif;
+  }
+}
+
+@layer utilities {
+  .mandala-pattern {
+    background-image: 
+      repeating-radial-gradient(circle at 50% 50%, transparent 0, transparent 40px, hsl(262 70% 45% / 0.03) 40px, hsl(262 70% 45% / 0.03) 41px),
+      repeating-radial-gradient(circle at 50% 50%, transparent 0, transparent 80px, hsl(330 65% 65% / 0.02) 80px, hsl(330 65% 65% / 0.02) 81px);
+  }
+
+  .glow-gold {
+    text-shadow: 0 0 20px hsl(28 88% 62% / 0.5);
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.4s ease-out;
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes breathe {
+    0%, 100% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.2); opacity: 0.8; }
+  }
+
+  .animate-breathe {
+    animation: breathe 2s ease-in-out infinite;
+  }
+}
