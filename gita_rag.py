@@ -29,22 +29,39 @@ class GitaRAG:
             print(">>> Embedding model loaded successfully into memory.")
 
     def retrieve_context(self, query: str, author: str, n_results: int = 5):
-        # This function is unchanged
+        # This function will now return TWO things: the formatted context string
+        # AND the raw source documents.
         self._load_embedding_model()
         print(f"Retrieving context for query: '{query}'")
         query_embedding = self.embedding_model.encode([query]).tolist()
         results = self.collection.query(
             query_embeddings=query_embedding, n_results=n_results, where={"author": author}
         )
+        
         if not results or not results.get('documents'):
-            return "No relevant passages found for your query."
-        context = ""
+            return "No relevant passages found for your query.", [] # Return empty list for sources
+
+        # Create the context string for the LLM
+        context_string = ""
+        source_documents = []
+
         for i, doc in enumerate(results['documents'][0]):
             metadata = results['metadatas'][0][i]
-            context += f"Passage {i+1} (from Chapter {metadata['chapter']}, Verse {metadata['verse']}):\n"
-            context += f"Shloka: {metadata['shloka_sanskrit']}\n"
-            context += f"Commentary: {doc}\n\n"
-        return context
+            
+            # Build the string for the LLM
+            context_string += f"Passage {i+1} (from Chapter {metadata['chapter']}, Verse {metadata['verse']}):\n"
+            context_string += f"Shloka: {metadata['shloka_sanskrit']}\n"
+            context_string += f"Commentary: {doc}\n\n"
+
+            # Build the structured list for the frontend
+            source_documents.append({
+                "shloka_id": metadata.get('shloka_id', 'N/A'),
+                "shloka_sanskrit": metadata.get('shloka_sanskrit', 'N/A'),
+                "commentary": doc,
+                "author": metadata.get('author', 'N/A')
+            })
+            
+        return context_string, source_documents
 
     # --- CHANGED FUNCTION ---
     def generate_krishna_response(self, query: str, context: str, output_language: str): # <-- New parameter
@@ -86,10 +103,17 @@ class GitaRAG:
         return response.text
 
     # --- CHANGED FUNCTION ---
-    def ask_krishna(self, query: str, author: str, output_language: str = 'english'): # <-- New parameter with default
-        retrieved_context = self.retrieve_context(query, author)
-        if "No relevant passages found" in retrieved_context:
-            return retrieved_context
-        # Pass the language preference to the generation step
+    def ask_krishna(self, query: str, author: str, output_language: str = 'english'):
+        # This function will now return the answer AND the sources.
+        retrieved_context, source_docs = self.retrieve_context(query, author)
+        
+        # If no sources are found, return a graceful message and an empty list
+        if not source_docs:
+            no_source_answer = "My dear seeker, I could not find a specific passage for your query in my teachings. Perhaps you could ask in another way?"
+            if output_language == 'hindi':
+                no_source_answer = "मेरे प्रिय साधक, मुझे आपके प्रश्न के लिए मेरे उपदेशों में कोई विशेष प्रसंग नहीं मिला। संभव है आप किसी और तरह से पूछ सकें?"
+            return no_source_answer, []
+
         final_answer = self.generate_krishna_response(query, retrieved_context, output_language)
-        return final_answer
+        
+        return final_answer, source_docs
