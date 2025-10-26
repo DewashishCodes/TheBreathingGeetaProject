@@ -20,9 +20,18 @@ export const ConversationMode = ({ onClose, onVoiceMessage }: ConversationModePr
   const [status, setStatus] = useState<'idle' | 'listening' | 'confirming' | 'thinking' | 'speaking'>('idle');
   const [transcript, setTranscript] = useState("");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [micPermission, setMicPermission] = useState<'granted' | 'prompt' | 'denied'>('prompt');
   const recognitionRef = useRef<any>(null);
 
+  // Effect to set up speech recognition and check permissions
   useEffect(() => {
+    // Check microphone permission status on component mount
+    navigator.permissions.query({ name: 'microphone' as PermissionName }).then((permissionStatus) => {
+      setMicPermission(permissionStatus.state);
+      // Listen for changes in permission status
+      permissionStatus.onchange = () => setMicPermission(permissionStatus.state);
+    });
+
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
       toast.error("Voice input is not supported by your browser.");
@@ -38,20 +47,24 @@ export const ConversationMode = ({ onClose, onVoiceMessage }: ConversationModePr
     recognition.onresult = (event: any) => {
       const finalTranscript = event.results[0][0].transcript;
       setTranscript(finalTranscript);
-      setStatus('confirming'); // Move to confirmation step
+      setStatus('confirming'); // Move to confirmation step after successful transcription
     };
 
     recognition.onerror = (event: any) => {
-      console.error("Speech recognition error:", event.error);
-      if (status === 'listening') {
+      if (event.error === 'not-allowed') {
+        toast.error("Microphone permission denied. Please allow it in your browser settings.");
+        setMicPermission('denied');
+      } else if (event.error !== 'no-speech') {
         toast.error("Could not capture audio. Please try again.");
       }
       setStatus('idle');
     };
 
     recognition.onend = () => {
+      // If the recognition ends while we were in the listening state, go back to idle.
+      // This handles cases where the user stops speaking.
       if (status === 'listening') {
-        setStatus('idle'); // If listening stops unexpectedly, go back to idle
+        setStatus('idle');
       }
     };
 
@@ -61,9 +74,13 @@ export const ConversationMode = ({ onClose, onVoiceMessage }: ConversationModePr
         recognitionRef.current.stop();
       }
     };
-  }, [status, onClose]);
+  }, []); // Run this setup only once
 
   const handleMicClick = () => {
+    if (micPermission === 'denied') {
+      toast.error("Microphone access is blocked. Please enable it in your browser settings.");
+      return;
+    }
     if (status === 'listening') {
       recognitionRef.current?.stop();
       setStatus('idle');
@@ -71,25 +88,26 @@ export const ConversationMode = ({ onClose, onVoiceMessage }: ConversationModePr
       try {
         recognitionRef.current?.start();
         setStatus('listening');
-      } catch (error) {
-        toast.error("Could not start voice recognition. Please check microphone permissions.");
+      } catch (e) {
+        console.error("Error starting recognition:", e);
+        toast.error("Could not start voice recognition.");
       }
     }
   };
 
   const handleConfirm = async () => {
     setStatus('thinking');
-    setAudioUrl(null); // Clear any previous audio URL
+    setAudioUrl(null); // Clear any previous audio
     const url = await onVoiceMessage(transcript);
     if (url) {
-      setAudioUrl(url); // Set the new audio URL
+      setAudioUrl(url);
       setStatus('speaking'); // The AudioPlayer will auto-play
     } else {
       toast.error("Could not retrieve a response from the divine source.");
       setStatus('idle');
     }
   };
-
+  
   const getStatusText = () => {
     switch (status) {
       case 'listening': return 'Listening...';
@@ -111,12 +129,12 @@ export const ConversationMode = ({ onClose, onVoiceMessage }: ConversationModePr
              <div className={`absolute inset-0 rounded-full ${status === 'listening' ? 'animate-ping' : ''}`} style={{ background: 'radial-gradient(circle, hsl(var(--primary) / 0.3) 0%, transparent 70%)', transform: 'scale(1.5)' }} />
              <img src={lotusAvatar} alt="The Breathing Geeta" className="relative w-48 h-48 rounded-full ring-4 ring-primary/50" />
           </div>
-          <div className="text-center space-y-2 min-h-[10rem]">
+          <div className="text-center space-y-2 min-h-[10rem] flex flex-col justify-center items-center">
             <h2 className="font-serif text-3xl font-bold text-primary glow-gold">{getStatusText()}</h2>
-            {status === 'thinking' && <Loader2 className="h-10 w-10 mx-auto text-primary animate-spin mt-4" />}
+            {status === 'thinking' && <Loader2 className="h-10 w-10 text-primary animate-spin mt-4" />}
             {status === 'speaking' && audioUrl && (
               <div className="w-full max-w-sm mx-auto pt-4 animate-fade-in">
-                <AudioPlayer audioUrl={audioUrl} />
+                <AudioPlayer audioUrl={audioUrl} onEnded={() => setStatus('idle')} />
               </div>
             )}
           </div>

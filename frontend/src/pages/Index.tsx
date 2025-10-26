@@ -124,7 +124,7 @@ const Index = () => {
   
   const callApiAndHandleResponse = async (query: string, generateAudio: boolean) => {
     try {
-      const API_URL = 'http://127.0.0.1:8000/ask';
+      const API_URL = `${import.meta.env.VITE_API_BASE_URL}/ask`; // This creates "/api/ask"
       const response = await axios.post<ApiResponse>(API_URL, {
         query,
         author: responseStyle,

@@ -7,15 +7,17 @@ import { Slider } from '@/components/ui/slider';
 
 interface AudioPlayerProps {
   audioUrl: string;
+  onEnded: () => void; // Function to call when audio finishes
 }
 
-const formatTime = (seconds: number) => {
-  const minutes = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+const formatTime = (time: number) => {
+  if (isNaN(time)) return '00:00';
+  const minutes = Math.floor(time / 60);
+  const seconds = Math.floor(time % 60);
+  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 };
 
-export const AudioPlayer = ({ audioUrl }: AudioPlayerProps) => {
+export const AudioPlayer = ({ audioUrl, onEnded }: AudioPlayerProps) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -29,22 +31,26 @@ export const AudioPlayer = ({ audioUrl }: AudioPlayerProps) => {
       setDuration(audio.duration);
       setCurrentTime(audio.currentTime);
     };
-
     const setAudioTime = () => setCurrentTime(audio.currentTime);
+    const handleEnded = () => {
+      setIsPlaying(false);
+      onEnded();
+    };
 
-    audio.addEventListener('loadedmetadata', setAudioData);
+    audio.addEventListener('loadeddata', setAudioData);
     audio.addEventListener('timeupdate', setAudioTime);
-    audio.addEventListener('ended', () => setIsPlaying(false));
+    audio.addEventListener('ended', handleEnded);
 
-    // Auto-play the audio when the component mounts
-    audio.play().catch(e => console.error("Autoplay failed", e));
+    // Autoplay when component is ready
+    audio.play().catch(() => setIsPlaying(false)); // Handle autoplay block
     setIsPlaying(true);
 
     return () => {
-      audio.removeEventListener('loadedmetadata', setAudioData);
+      audio.removeEventListener('loadeddata', setAudioData);
       audio.removeEventListener('timeupdate', setAudioTime);
+      audio.removeEventListener('ended', handleEnded);
     };
-  }, [audioUrl]);
+  }, [audioUrl, onEnded]);
 
   const togglePlayPause = () => {
     if (isPlaying) {
@@ -64,29 +70,29 @@ export const AudioPlayer = ({ audioUrl }: AudioPlayerProps) => {
 
   const skip = (amount: number) => {
     if (audioRef.current) {
-        seek(audioRef.current.currentTime + amount);
+        seek(Math.max(0, Math.min(duration, audioRef.current.currentTime + amount)));
     }
   };
 
   return (
     <div className="w-full bg-shloka-card/50 p-3 rounded-lg flex items-center gap-3 mt-2">
       <audio ref={audioRef} src={audioUrl} preload="metadata" />
-      <Button onClick={togglePlayPause} variant="ghost" size="icon" className="h-8 w-8">
+      <Button onClick={togglePlayPause} variant="ghost" size="icon" className="h-8 w-8 text-primary">
         {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
       </Button>
       <span className="text-xs text-muted-foreground">{formatTime(currentTime)}</span>
       <Slider
         value={[currentTime]}
-        max={duration || 0}
+        max={duration || 1}
         step={1}
         onValueChange={(value) => seek(value[0])}
         className="flex-1"
       />
       <span className="text-xs text-muted-foreground">{formatTime(duration)}</span>
-      <Button onClick={() => skip(-5)} variant="ghost" size="icon" className="h-8 w-8">
+      <Button onClick={() => skip(-5)} variant="ghost" size="icon" className="h-8 w-8 text-primary">
         <RotateCcw className="h-4 w-4" />
       </Button>
-      <Button onClick={() => skip(5)} variant="ghost" size="icon" className="h-8 w-8">
+      <Button onClick={() => skip(5)} variant="ghost" size="icon" className="h-8 w-8 text-primary">
         <FastForward className="h-4 w-4" />
       </Button>
     </div>
