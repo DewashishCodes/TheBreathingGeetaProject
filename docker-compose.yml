@@ -1,7 +1,4 @@
 # docker-compose.yml
-
-version: '3.8'
-
 services:
   backend:
     build: ./backend
@@ -15,13 +12,13 @@ services:
       - ./backend/.env
 
   frontend:
-    build: ./frontend/vite-project
+    build: ./frontend
     ports:
       # Map your computer's port 5173 to the container's port 5173
       - "5173:5173"
     volumes:
       # Mount your local frontend code for hot-reloading
-      - ./frontend/vite-project:/app
+      - ./frontend:/app
       # Prevents node_modules from being overwritten by the local empty folder
       - /app/node_modules
     environment:
@@ -29,4 +26,4 @@ services:
       # The frontend can now reach the backend using its service name "backend"
       - VITE_API_BASE_URL=http://backend:8000
     env_file:
-      - ./frontend/vite-project/.env.local
+      - ./frontend/.env.local
