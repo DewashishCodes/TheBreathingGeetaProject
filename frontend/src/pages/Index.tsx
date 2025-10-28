@@ -70,7 +70,7 @@ const Index = () => {
   const [language, setLanguage] = useState<Language>('english');
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  // --- HOOKS for Persistence & UX ---
+  // --- HOOKS ---
   useEffect(() => {
     const storedUser = localStorage.getItem('gita-user-profile');
     if (storedUser) {
@@ -82,7 +82,6 @@ const Index = () => {
           { id: uuidv4(), role: 'assistant', content: `Welcome back, ${userData.name}. How may I guide you?` }
         ]);
       } catch (error) {
-        console.error("Failed to parse user data from storage", error);
         localStorage.removeItem('gita-user-profile');
       }
     }
@@ -101,7 +100,7 @@ const Index = () => {
     }
   }, [messages]);
 
-  // --- HANDLERS for Login, Logout, and API calls ---
+  // --- HANDLERS ---
   const handleLoginSuccess = (credentialResponse: CredentialResponse) => {
     if (credentialResponse.credential) {
       const decoded: UserProfile = jwtDecode(credentialResponse.credential);
@@ -124,7 +123,10 @@ const Index = () => {
   
   const callApiAndHandleResponse = async (query: string, generateAudio: boolean) => {
     try {
-      const API_URL = `${import.meta.env.VITE_API_BASE_URL}/ask`; // This creates "/api/ask"
+      // --- THE KEY CHANGE ---
+      // The URL is now a simple, relative path. Nginx will handle routing it to the backend.
+      const API_URL = "/api/ask";
+      
       const response = await axios.post<ApiResponse>(API_URL, {
         query,
         author: responseStyle,
@@ -137,6 +139,7 @@ const Index = () => {
         role: 'assistant',
         content: response.data.answer,
         sources: response.data.sources,
+        // The audio URL is now also relative, which is perfectly fine.
         audioUrl: response.data.audio_url,
       };
       setMessages(prev => [...prev, aiMessage]);
@@ -146,7 +149,7 @@ const Index = () => {
       const errorMessage: Message = {
         id: uuidv4(),
         role: 'assistant',
-        content: "My apologies, seeker. I encountered a disturbance and could not process your request. Please try again."
+        content: "My apologies, seeker. I encountered a disturbance. Please try again."
       };
       setMessages(prev => [...prev, errorMessage]);
       return null;
@@ -158,7 +161,7 @@ const Index = () => {
     const userMessage: Message = { id: uuidv4(), role: 'user', content: query };
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
-    await callApiAndHandleResponse(query, false); // Audio is FALSE for text chat
+    await callApiAndHandleResponse(query, false);
     setIsLoading(false);
   };
 
@@ -166,7 +169,6 @@ const Index = () => {
     if (!user) { toast.error("Please log in first."); return null; }
     const userMessage: Message = { id: uuidv4(), role: 'user', content: query };
     setMessages(prev => [...prev, userMessage]);
-    // Audio is TRUE for voice chat
     return await callApiAndHandleResponse(query, true);
   };
 

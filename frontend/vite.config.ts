@@ -1,28 +1,31 @@
-// vite.config.ts (Corrected for localhost.run)
-
+// vite.config.ts
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
-// https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  server: {
-    // We don't need `host: "::"` for this setup.
-    
-    // We will run the frontend on port 5173 to avoid conflicts with the backend.
-    port: 5173, 
-    
-    // This is the key change. We are allowing any subdomain from localhost.run's domain.
-    // The leading dot '.' is a wildcard.
-    allowedHosts: [
-      '.lhr.life'
-    ]
-  },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+  plugins: [
+    react(),
+    // Only include the lovable-tagger plugin in development mode
+    mode === "development" && componentTagger(),
+  ].filter(Boolean),
+
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+    },
+  },
+
+  server: {
+    host: true, // allows access from other devices / tunnels
+    allowedHosts: ["*.ngrok-free.dev"], // allow your ngrok domain
+    proxy: {
+      "/api": {
+        target: "http://127.0.0.1:8000", // FastAPI backend
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
 }));

@@ -1,12 +1,14 @@
-# docker-compose.yml
+# docker-compose.yml (Final Production-Ready Version)
+version: '3.8'
+
 services:
   backend:
     build: ./backend
-    ports:
-      # Map your computer's port 8000 to the container's port 8000
-      - "8000:8000"
+    # We no longer need to expose the backend port to the host machine,
+    # as Nginx will talk to it directly inside the Docker network.
+    # ports:
+    #   - "8000:8000" 
     volumes:
-      # Mount your local backend code into the container for hot-reloading
       - ./backend:/app
     env_file:
       - ./backend/.env
@@ -14,16 +16,8 @@ services:
   frontend:
     build: ./frontend
     ports:
-      # Map your computer's port 5173 to the container's port 5173
-      - "5173:5173"
-    volumes:
-      # Mount your local frontend code for hot-reloading
-      - ./frontend:/app
-      # Prevents node_modules from being overwritten by the local empty folder
-      - /app/node_modules
-    environment:
-      # --- THE MAGIC OF DOCKER NETWORKING ---
-      # The frontend can now reach the backend using its service name "backend"
-      - VITE_API_BASE_URL=http://backend:8000
-    env_file:
-      - ./frontend/.env.local
+      # We map your computer's port 80 to the container's port 80 (Nginx)
+      - "80:80"
+    # We don't need volumes for production builds, but they are useful for dev
+    # volumes:
+    #   - ./frontend/vite-project:/app

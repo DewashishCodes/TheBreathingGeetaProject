@@ -36,7 +36,11 @@ TEMP_AUDIO_DIR = "temp_audio"
 os.makedirs(TEMP_AUDIO_DIR, exist_ok=True)
 
 app = FastAPI(title="Bhagavad Gita Chatbot API", version="1.3.0")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+origins = [
+    "http://localhost:5173",
+    "https://untreatable-transmarginally-stephania.ngrok-free.dev",
+]
+app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 # --- DATA MODELS ---
 class QueryRequest(BaseModel):
